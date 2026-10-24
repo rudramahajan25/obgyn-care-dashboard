@@ -10,7 +10,7 @@ import {
 import { patientHistories } from "../data/patientHistory";
 import { hospitalRoster } from "../data/hospitalStaff";
 import { createSeedOtBookings } from "../data/otScheduleSeed";
-import { authenticateUser } from "../data/userAccounts";
+import { authenticateUser, userAccounts } from "../data/userAccounts";
 import { patients as initialPatients } from "../data/mockData";
 import type {
   ActiveAlarm,
@@ -56,6 +56,28 @@ function statCallRecipientRoles(staffRole: string): AlarmTargetRole[] {
 }
 
 const STORAGE_KEY = "obgyn-care-state-v3";
+const SESSION_USER_KEY = "obgyn-session-user";
+
+function loadSessionUser(): UserProfile | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_USER_KEY);
+    return raw ? (JSON.parse(raw) as UserProfile) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSessionUser(user: UserProfile | null) {
+  try {
+    if (user) {
+      sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
+    } else {
+      sessionStorage.removeItem(SESSION_USER_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
 
 interface PersistedState {
   transportRequests: TransportRequest[];
@@ -94,6 +116,7 @@ const defaultChecklist = (): LabourChecklistState => ({
 interface AppContextValue {
   user: UserProfile | null;
   loginWithCredentials: (username: string, password: string) => { ok: boolean; error?: string };
+  loginAsRole: (role: UserRole) => boolean;
   logout: () => void;
   selectedPatientId: string;
   setSelectedPatientId: (id: string) => void;
@@ -196,7 +219,12 @@ function targetsForTransport(type: TransportType): AlarmTargetRole[] {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUserState] = useState<UserProfile | null>(loadSessionUser);
+
+  const setUser = useCallback((u: UserProfile | null) => {
+    setUserState(u);
+    saveSessionUser(u);
+  }, []);
   const clinicalRoles: UserRole[] = [
     "doctor",
     "assistant_doctor",
@@ -288,16 +316,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAlarms((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
-  const loginWithCredentials = useCallback((username: string, password: string) => {
-    const account = authenticateUser(username, password);
-    if (!account) {
-      return { ok: false, error: "Invalid username or password. Check docs/Demo_User_Credentials.docx" };
-    }
-    setUser(account.profile);
-    return { ok: true };
-  }, []);
+  const loginWithCredentials = useCallback(
+    (username: string, password: string) => {
+      const account = authenticateUser(username, password);
+      if (!account) {
+        return {
+          ok: false,
+          error: "Invalid username or password. Check DEMO_CREDENTIALS.md",
+        };
+      }
+      setUser(account.profile);
+      return { ok: true };
+    },
+    [setUser]
+  );
 
-  const logout = useCallback(() => setUser(null), []);
+  const loginAsRole = useCallback(
+    (role: UserRole) => {
+      const account = userAccounts.find((a) => a.role === role);
+      if (account) {
+        setUser(account.profile);
+        return true;
+      }
+      return false;
+    },
+    [setUser]
+  );
+
+  const logout = useCallback(() => setUser(null), [setUser]);
 
   const getPatientHistory = useCallback(
     (patientId: string) => patientHistories[patientId] ?? null,
@@ -659,6 +705,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loginWithCredentials,
+      loginAsRole,
       logout,
       selectedPatientId,
       setSelectedPatientId,
@@ -699,6 +746,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       user,
       loginWithCredentials,
+      loginAsRole,
       logout,
       selectedPatientId,
       patients,

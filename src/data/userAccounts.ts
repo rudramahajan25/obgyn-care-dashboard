@@ -73,10 +73,13 @@ export function authenticateUser(
   username: string,
   password: string
 ): UserAccount | null {
-  const normalized = username.trim().toLowerCase();
+  const normalizedUser = username.trim().toLowerCase();
+  const normalizedPass = password.trim().toLowerCase();
   return (
     userAccounts.find(
-      (a) => a.username.toLowerCase() === normalized && a.password === password
+      (a) =>
+        a.username.toLowerCase() === normalizedUser &&
+        (a.password === password.trim() || a.password.toLowerCase() === normalizedPass)
     ) ?? null
   );
 }
