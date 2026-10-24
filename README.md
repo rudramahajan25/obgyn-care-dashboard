@@ -21,6 +21,8 @@ Browser-first prototype for a pregnancy / L&D hospital ward with **profile-based
 
 STAT / urgent calls **ring only on the recipient’s dashboard** (lift, wheelchair, ultrasound, lab, doctor) — not on the nurse screen that placed the call. Use two browser tabs with different roles to test.
 
+See **[DEMO_CREDENTIALS.md](./DEMO_CREDENTIALS.md)** for demo user accounts and passwords.
+
 See **[AGENTS.md](./AGENTS.md)** for full project context for AI agents.
 
 See **[PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md)** for the current architecture, workflows, state model, and implementation notes.
